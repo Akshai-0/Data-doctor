@@ -274,6 +274,10 @@ export default function App() {
     try {
       const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000';
       const response = await fetch(`${baseUrl}/api/analyze`, {
+        method: 'POST',
+        body: formData
+      });
+
       if (!response.ok) {
         const errDetail = await response.json().catch(() => ({ detail: 'Unknown server error' }));
         throw new Error(errDetail.detail || 'Failed to analyze the dataset.');
