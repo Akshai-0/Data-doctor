@@ -241,7 +241,8 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{entry.col}</span>
-                      <span className="text-sm font-medium text-slate-400">Constant Column Found (All values are "{entry.val}")</span>
+                      {/* FIXED: Wrapped the literal message expression properly to satisfy tsc syntax rules */}
+                      <span className="text-sm font-medium text-slate-400">{`Constant Column Found (All values are "${entry.val}")`}</span>
                     </div>
                   </div>
                   {renderFixWidget("constant", entry.col)}
@@ -254,7 +255,8 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{result.imbalance.col}</span>
-                      <span className="text-sm font-medium text-orange-400">Severe Class Imbalance Detected (Skew Ratio: {result.imbalance.ratio.toFixed(2)})</span>
+                      {/* FIXED: Cleaned up trailing quote/brace layout mapping issues */}
+                      <span className="text-sm font-medium text-orange-400">{`Severe Class Imbalance Detected (Skew Ratio: ${result.imbalance.ratio.toFixed(2)})`}</span>
                     </div>
                   </div>
                   {renderFixWidget("imbalance", result.imbalance.col)}
@@ -269,8 +271,8 @@ export default function App() {
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.a}</span>
                       <span className="text-slate-400 text-xs">↔</span>
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.b}</span>
-                      {/* FIXED: Removed raw markdown math notation causing TS tokenization failure */}
-                      <span className="text-sm font-medium text-yellow-500">High Correlation (r = {pair.r.toFixed(2)})</span>
+                      {/* FIXED: Securely interpolated variable strings without causing JSX token drops */}
+                      <span className="text-sm font-medium text-yellow-500">{`High Correlation (r = ${pair.r.toFixed(2)})`}</span>
                     </div>
                   </div>
                   {renderFixWidget("correlation", `${pair.a}__${pair.b}`)}
