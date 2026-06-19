@@ -114,11 +114,12 @@ export default function App() {
   };
 
   // Modular Form Selection & Submission Component Generator
-  // Moved up here to make sure it is defined before JSX parsing evaluation
+  // FIX: Shifted up before the return block statement so the compiler scope is intact
   function renderFixWidget(issueType: string, column?: string) {
     const groupKey = `${issueType}-${column || 'global'}`;
     const optionMetaGroup = fixMeta[issueType];
-    // Safeguard configuration lookups when asynchronous calls are pending
+    
+    // Safety check against undefined fields prior to backend api data resolution
     if (!optionMetaGroup || !optionMetaGroup.options) return null;
 
     return (
