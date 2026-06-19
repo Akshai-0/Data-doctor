@@ -1,8 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  Stethoscope, Upload, RefreshCw, CheckCircle2, AlertTriangle,
-  ShieldAlert, Info, FileText, FileCheck2, ListFilter,
-  Activity, Layers, Link, Flame, Download
+  Stethoscope, Upload, RefreshCw, Download, 
+  Activity, Layers, Flame
 } from 'lucide-react';
 
 // --- Complete Type System Setup ---
@@ -113,6 +112,37 @@ export default function App() {
       setFixing(null);
     }
   };
+
+  // Modular Form Selection & Submission Component Generator
+  // Moved up here to make sure it is defined before JSX parsing evaluation
+  function renderFixWidget(issueType: string, column?: string) {
+    const groupKey = `${issueType}-${column || 'global'}`;
+    const optionMetaGroup = fixMeta[issueType];
+    // Safeguard configuration lookups when asynchronous calls are pending
+    if (!optionMetaGroup || !optionMetaGroup.options) return null;
+
+    return (
+      <div className="flex items-center space-x-2 shrink-0">
+        <select 
+          className="bg-slate-900 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
+          value={selectedOptions[groupKey] || ""}
+          onChange={(e) => setSelectedOptions({ ...selectedOptions, [groupKey]: e.target.value })}
+        >
+          <option value="">-- Choose Fix Action --</option>
+          {optionMetaGroup.options.map((opt) => (
+            <option key={opt.value} value={opt.value}>{opt.value}</option>
+          ))}
+        </select>
+        <button 
+          onClick={() => executeFix(issueType, column)}
+          disabled={fixing === groupKey}
+          className="bg-slate-700 text-white hover:bg-emerald-500 hover:text-slate-950 transition-all rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
+        >
+          {fixing === groupKey ? "Patching..." : "Apply Fix"}
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 font-sans antialiased">
@@ -241,7 +271,6 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{entry.col}</span>
-                      {/* FIXED: Wrapped the literal message expression properly to satisfy tsc syntax rules */}
                       <span className="text-sm font-medium text-slate-400">{`Constant Column Found (All values are "${entry.val}")`}</span>
                     </div>
                   </div>
@@ -255,7 +284,6 @@ export default function App() {
                   <div className="space-y-1">
                     <div className="flex items-center space-x-2">
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{result.imbalance.col}</span>
-                      {/* FIXED: Cleaned up trailing quote/brace layout mapping issues */}
                       <span className="text-sm font-medium text-orange-400">{`Severe Class Imbalance Detected (Skew Ratio: ${result.imbalance.ratio.toFixed(2)})`}</span>
                     </div>
                   </div>
@@ -271,7 +299,6 @@ export default function App() {
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.a}</span>
                       <span className="text-slate-400 text-xs">↔</span>
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.b}</span>
-                      {/* FIXED: Securely interpolated variable strings without causing JSX token drops */}
                       <span className="text-sm font-medium text-yellow-500">{`High Correlation (r = ${pair.r.toFixed(2)})`}</span>
                     </div>
                   </div>
@@ -287,40 +314,11 @@ export default function App() {
                   </div>
                   {renderFixWidget("duplicates")}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
       </main>
     </div>
   );
-
-  // Modular Form Selection & Submission Component Generator
-  function renderFixWidget(issueType: string, column?: string) {
-    const groupKey = `${issueType}-${column || 'global'}`;
-    const optionMetaGroup = fixMeta[issueType];
-    if (!optionMetaGroup) return null;
-
-    return (
-      <div className="flex items-center space-x-2 shrink-0">
-        <select 
-          className="bg-slate-900 text-slate-200 border border-slate-700 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-500"
-          value={selectedOptions[groupKey] || ""}
-          onChange={(e) => setSelectedOptions({ ...selectedOptions, [groupKey]: e.target.value })}
-        >
-          <option value="">-- Choose Fix Action --</option>
-          {optionMetaGroup.options.map((opt) => (
-            <option key={opt.value} value={opt.value}>{opt.value}</option>
-          ))}
-        </select>
-        <button 
-          onClick={() => executeFix(issueType, column)}
-          disabled={fixing === groupKey}
-          className="bg-slate-700 text-white hover:bg-emerald-500 hover:text-slate-950 transition-all rounded-lg px-3 py-1.5 text-xs font-semibold disabled:opacity-40"
-        >
-          {fixing === groupKey ? "Patching..." : "Apply Fix"}
-        </button>
-      </div>
-    );
-  }
 }
