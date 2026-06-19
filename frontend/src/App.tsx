@@ -272,10 +272,8 @@ export default function App() {
     formData.append('corr_threshold', corrThresh);
 
     try {
-      const response = await fetch('http://localhost:8000/api/analyze', {
-        method: 'POST',
-        body: formData,
-      });
+      const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:8000';
+      const response = await fetch(`${baseUrl}/api/analyze`, {
       if (!response.ok) {
         const errDetail = await response.json().catch(() => ({ detail: 'Unknown server error' }));
         throw new Error(errDetail.detail || 'Failed to analyze the dataset.');
@@ -305,7 +303,7 @@ export default function App() {
     setFixLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:8000/api/fix', {
+      const response = await fetch('https://data-doctor-production-4bda.up.railway.app/api/analyze', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_id: fileId, issue_type: issueType, column, option, extra_info: extraInfo }),
@@ -476,7 +474,7 @@ export default function App() {
             <div style={{ display: 'flex', gap: '8px' }}>
               <button
                 className="btn btn-secondary"
-                onClick={() => window.open(`http://localhost:8000/api/download/${fileId}`, '_blank')}
+                onClick={() => window.open(`https://data-doctor-production-4bda.up.railway.app/api/download/${fileId}`, '_blank')}
                 disabled={!fileId}
                 style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
               >
