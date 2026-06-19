@@ -698,74 +698,6 @@ def download_dataset(file_id: str):
             media_type="application/json",
             headers={"Content-Disposition": f"attachment; filename=cleaned_{filename}"}
         )
-        @app.get("/api/fix-options")
-        def get_fix_options():
-            """Returns the available fix options for each issue type."""
-            return {
-                "missing": {
-                    "label": "Missing Values",
-                    "options": [
-                        {"value": "Fill with Mean", "description": "Replace missing values with the column mean (numeric columns)"},
-                        {"value": "Fill with Median", "description": "Replace missing values with the column median (numeric columns)"},
-                        {"value": "Drop Rows", "description": "Remove all rows that have a missing value in this column"},
-                        {"value": "Keep As Is", "description": "Do nothing, keep missing values as they are"}
-                    ]
-                },
-                "duplicates": {
-                    "label": "Duplicate Rows",
-                    "options": [
-                        {"value": "Remove Exact Duplicates", "description": "Delete all rows that are exact duplicates, keeping the first occurrence"},
-                        {"value": "Keep Duplicates", "description": "Do nothing, keep duplicate rows as they are"}
-                    ]
-                },
-                "invalid": {
-                    "label": "Invalid Values",
-                    "options": [
-                        {"value": "Replace with NULL", "description": "Replace invalid values with NULL/None"},
-                        {"value": "Remove Rows", "description": "Remove rows that contain invalid values in this column"},
-                        {"value": "Keep Values", "description": "Do nothing, keep invalid values as they are"}
-                    ]
-                },
-                "outliers": {
-                    "label": "Outliers",
-                    "options": [
-                        {"value": "Remove Outliers", "description": "Delete rows where this column's value falls outside the IQR bounds"},
-                        {"value": "Cap to IQR Bounds", "description": "Clamp outlier values to the lower/upper IQR bounds instead of removing them"},
-                        {"value": "Keep Values", "description": "Do nothing, keep outliers as they are"}
-                    ]
-                },
-                "imbalance": {
-                    "label": "Class Imbalance",
-                    "options": [
-                        {"value": "Oversample Minority Class", "description": "Randomly duplicate minority class rows until all classes are balanced"},
-                        {"value": "Undersample Majority Class", "description": "Randomly remove majority class rows until all classes are balanced"},
-                        {"value": "Keep Distribution", "description": "Do nothing, keep the class distribution as it is"}
-                    ]
-                },
-                "correlation": {
-                    "label": "High Correlation",
-                    "options": [
-                        {"value": "Remove First Column", "description": "Drop the first column of the correlated pair"},
-                        {"value": "Remove Second Column", "description": "Drop the second column of the correlated pair"},
-                        {"value": "Keep Both", "description": "Do nothing, keep both correlated columns"}
-                    ]
-                },
-                "constant": {
-                    "label": "Constant Columns",
-                    "options": [
-                        {"value": "Remove Column", "description": "Drop this column since it has no variance and provides no information"},
-                        {"value": "Keep Column", "description": "Do nothing, keep the constant column"}
-                    ]
-                },
-                "mixed": {
-                    "label": "Mixed Types",
-                    "options": [
-                        {"value": "Convert to Numeric", "description": "Force-convert the column to numeric; non-numeric values become NULL"},
-                        {"value": "Convert Entire Column to String", "description": "Convert all values in the column to string type"},
-                        {"value": "Keep As Is", "description": "Do nothing, keep mixed types as they are"}
-                    ]
-                }
-            }
     else:
         # Fallback to CSV
         buf = io.BytesIO()
@@ -775,4 +707,75 @@ def download_dataset(file_id: str):
             buf,
             media_type="text/csv",
             headers={"Content-Disposition": f"attachment; filename=cleaned_dataset.csv"}
+        )
+
+# FIX: This endpoint is now properly aligned to the left margin (global application scope)
+@app.get("/api/fix-options")
+def get_fix_options():
+    """Returns the available fix options for each issue type."""
+    return {
+        "missing": {
+            "label": "Missing Values",
+            "options": [
+                {"value": "Fill with Mean", "description": "Replace missing values with the column mean (numeric columns)"},
+                {"value": "Fill with Median", "description": "Replace missing values with the column median (numeric columns)"},
+                {"value": "Drop Rows", "description": "Remove all rows that have a missing value in this column"},
+                {"value": "Keep As Is", "description": "Do nothing, keep missing values as they are"}
+            ]
+        },
+        "duplicates": {
+            "label": "Duplicate Rows",
+            "options": [
+                {"value": "Remove Exact Duplicates", "description": "Delete all rows that are exact duplicates, keeping the first occurrence"},
+                {"value": "Keep Duplicates", "description": "Do nothing, keep duplicate rows as they are"}
+            ]
+        },
+        "invalid": {
+            "label": "Invalid Values",
+            "options": [
+                {"value": "Replace with NULL", "description": "Replace invalid values with NULL/None"},
+                {"value": "Remove Rows", "description": "Remove rows that contain invalid values in this column"},
+                {"value": "Keep Values", "description": "Do nothing, keep invalid values as they are"}
+            ]
+        },
+        "outliers": {
+            "label": "Outliers",
+            "options": [
+                {"value": "Remove Outliers", "description": "Delete rows where this column's value falls outside the IQR bounds"},
+                {"value": "Cap to IQR Bounds", "description": "Clamp outlier values to the lower/upper IQR bounds instead of removing them"},
+                {"value": "Keep Values", "description": "Do nothing, keep outliers as they are"}
+            ]
+        },
+        "imbalance": {
+            "label": "Class Imbalance",
+            "options": [
+                {"value": "Oversample Minority Class", "description": "Randomly duplicate minority class rows until all classes are balanced"},
+                {"value": "Undersample Majority Class", "description": "Randomly remove majority class rows until all classes are balanced"},
+                {"value": "Keep Distribution", "description": "Do nothing, keep the class distribution as it is"}
+            ]
+        },
+        "correlation": {
+            "label": "High Correlation",
+            "options": [
+                {"value": "Remove First Column", "description": "Drop the first column of the correlated pair"},
+                {"value": "Remove Second Column", "description": "Drop the second column of the correlated pair"},
+                {"value": "Keep Both", "description": "Do nothing, keep both correlated columns"}
+            ]
+        },
+        "constant": {
+            "label": "Constant Columns",
+            "options": [
+                {"value": "Remove Column", "description": "Drop this column since it has no variance and provides no information"},
+                {"value": "Keep Column", "description": "Do nothing, keep the constant column"}
+            ]
+        },
+        "mixed": {
+            "label": "Mixed Types",
+            "options": [
+                {"value": "Convert to Numeric", "description": "Force-convert the column to numeric; non-numeric values become NULL"},
+                {"value": "Convert Entire Column to String", "description": "Convert all values in the column to string type"},
+                {"value": "Keep As Is", "description": "Do nothing, keep mixed types as they are"}
+            ]
+        }
+    }
         )
