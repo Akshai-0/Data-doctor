@@ -283,9 +283,6 @@ export default function App() {
         throw new Error(errDetail.detail || 'Failed to analyze the dataset.');
       }
       const data: AnalysisResult = await response.json();
-      console.log('file_id:', data.file_id);
-      console.log('duplicates count:', data.duplicates.count);
-      console.log('missing total:', data.missing.total);
       setResult(data);
       setFileId(data.file_id);
       if (data.missing.total > 0) setActiveTab('missing');
@@ -307,20 +304,21 @@ export default function App() {
     setFixLoading(true);
     setError(null);
     try {
-      const response = await fetch('https://data-doctor-production-4bda.up.railway.app/api/analyze', {
+      // FIX FIXED HERE: Changed endpoint path from /api/analyze to /api/fix
+      const response = await fetch('https://data-doctor-production-4bda.up.railway.app/api/fix', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ file_id: fileId, issue_type: issueType, column, option, extra_info: extraInfo }),
       });
       if (!response.ok) {
-        const err = await response.json().catch(() => ({ detail: 'Unknown error' }));
+        const err = await response.json().catch(() => ({ detail: 'Unknown data execution failure.' }));
         throw new Error(err.detail);
       }
       const data: AnalysisResult = await response.json();
       setResult(data);
       setFileId(data.file_id);
     } catch (err: any) {
-      setError(err.message || 'Fix failed.');
+      setError(err.message || 'Fix execution configuration failed.');
     } finally {
       setFixLoading(false);
     }
@@ -471,11 +469,11 @@ export default function App() {
                 <strong>{result.n}</strong> rows &times; <strong>{result.cols.length}</strong> columns &mdash; {file?.name}
               </span>
             </div>
-            <button className="btn btn-secondary" onClick={resetApp} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
-              <RefreshCw size={14} />
-              <span>Upload New File</span>
-            </button>
             <div style={{ display: 'flex', gap: '8px' }}>
+              <button className="btn btn-secondary" onClick={resetApp} style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}>
+                <RefreshCw size={14} />
+                <span>Upload New File</span>
+              </button>
               <button
                 className="btn btn-secondary"
                 onClick={() => window.open(`https://data-doctor-production-4bda.up.railway.app/api/download/${fileId}`, '_blank')}
@@ -640,7 +638,6 @@ export default function App() {
                         ))}
                       </div>
                     </div>
-                    {/* Fix boxes — one per column */}
                     {Object.keys(result.missing.per).map(col => (
                       <FixBox
                         key={col}
@@ -698,9 +695,6 @@ export default function App() {
                         </div>
                       </div>
                     </div>
-                    <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.75rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                      Duplicate Sample List (First 15 Rows)
-                    </h4>
                     <div className="table-container">
                       <table>
                         <thead>
@@ -749,7 +743,7 @@ export default function App() {
                 </div>
                 {result.invalid.total === 0 ? (
                   <div className="ok-icon-container">
-                    <CheckCircle2 size={18} /><span>Superb! No type mismatches, negative numbers, or invalid date values detected.</span>
+                    <CheckCircle2 size={18} /><span>Superb! No type mismatches, negative constraints, or parsing conflicts found.</span>
                   </div>
                 ) : (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -769,15 +763,11 @@ export default function App() {
                               </tr>
                             </thead>
                             <tbody>
-                              {info.issues.map((issue, idx) => (
+                              {info.issues.slice(0, 10).map((issue, idx) => (
                                 <tr key={idx}>
                                   <td><strong>{issue.row}</strong></td>
-                                  <td><code>{issue.value}</code></td>
-                                  <td style={{ color: 'hsl(354, 90%, 80%)' }}>
-                                    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-                                      <AlertTriangle size={12} />{issue.reason}
-                                    </span>
-                                  </td>
+                                  <td><code style={{ color: 'hsl(354, 90%, 70%)' }}>{issue.value}</code></td>
+                                  <td>{issue.reason}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -787,9 +777,8 @@ export default function App() {
                           issueType="invalid"
                           column={col}
                           options={[
-                            { value: 'Replace with NULL', description: 'Replace invalid values in this column with NULL/None' },
-                            { value: 'Remove Rows', description: 'Remove rows that contain invalid values in this column' },
-                            { value: 'Keep Values', description: 'Do nothing, keep invalid values as they are' },
+                            { value: 'Coerce to Valid or Null', description: 'Convert structural invalidations directly into usable numeric types or fallback to NaN' },
+                            { value: 'Drop Faulty Rows', description: 'Erase row vectors housing formatting conflicts from processing pipelines entirely' },
                           ]}
                           fixSelections={fixSelections}
                           setFixSelections={setFixSelections}
@@ -807,40 +796,35 @@ export default function App() {
             {activeTab === 'outliers' && (
               <div>
                 <div className="section-header">
-                  <div className="section-title"><Flame size={18} /><span>Outliers Detection (IQR Method)</span></div>
-                  <div className="section-info">{result.outliers.total} outlier cells detected in numeric columns</div>
+                  <div className="section-title"><Flame size={18} /><span>Outliers Analysis (IQR Rule)</span></div>
+                  <div className="section-info">{result.outliers.total} statistical anomalies flagged</div>
                 </div>
                 {result.outliers.total === 0 ? (
                   <div className="ok-icon-container">
-                    <CheckCircle2 size={18} /><span>Excellent! No numeric outliers found using Interquartile Range [Q1 - 1.5*IQR, Q3 + 1.5*IQR].</span>
+                    <CheckCircle2 size={18} /><span>Clean metrics! No extreme values detected across distributions.</span>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2.5rem' }}>
                     {Object.entries(result.outliers.per).map(([col, info]) => (
                       <div key={col}>
-                        <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', flexWrap: 'wrap' }}>
-                          <span style={{ fontSize: '1.05rem', fontWeight: 600 }}>{col}</span>
-                          <span className="badge badge-warning">{info.count} Outliers ({info.pct}%)</span>
+                        <div style={{ display: 'flex', justifyItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem', flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: '1rem', fontWeight: 600 }}>{col}</span>
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            Bounds: <code>[{info.lb}, {info.ub}]</code> &middot; Q1: <code>{info.q1}</code> &middot; Q3: <code>{info.q3}</code>
+                            Bounds: [{info.lb.toFixed(2)}, {info.ub.toFixed(2)}] | Q1: {info.q1.toFixed(2)} | Q3: {info.q3.toFixed(2)}
                           </span>
                         </div>
-                        <div className="table-container" style={{ marginTop: '0.5rem', marginBottom: '1rem' }}>
+                        <div className="table-container">
                           <table>
-                            <thead><tr><th>Outlier Row Indexes &amp; Values (Sample)</th></tr></thead>
+                            <thead>
+                              <tr><th>Row Index</th><th>Extreme Value Recorded</th></tr>
+                            </thead>
                             <tbody>
-                              <tr>
-                                <td style={{ wordBreak: 'break-all', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                                  {info.rows.map((r, ri) => (
-                                    <span key={ri} style={{ marginRight: '16px', display: 'inline-block' }}>
-                                      Row {r.row}: <strong style={{ color: 'hsl(38, 95%, 75%)' }}>{r.value}</strong>
-                                    </span>
-                                  ))}
-                                  {info.count > info.rows.length && (
-                                    <span style={{ color: 'var(--text-muted)' }}>+ {info.count - info.rows.length} more outliers</span>
-                                  )}
-                                </td>
-                              </tr>
+                              {info.rows.slice(0, 8).map((r, i) => (
+                                <tr key={i}>
+                                  <td><strong>{r.row}</strong></td>
+                                  <td><span style={{ color: 'hsl(38, 95%, 60%)', fontWeight: 600 }}>{r.value}</span></td>
+                                </tr>
+                              ))}
                             </tbody>
                           </table>
                         </div>
@@ -848,9 +832,8 @@ export default function App() {
                           issueType="outliers"
                           column={col}
                           options={[
-                            { value: 'Remove Outliers', description: 'Delete rows where this column\'s value falls outside the IQR bounds' },
-                            { value: 'Cap to IQR Bounds', description: 'Clamp outlier values to the lower/upper IQR bounds instead of removing them' },
-                            { value: 'Keep Values', description: 'Do nothing, keep outliers as they are' },
+                            { value: 'Cap at IQR Boundaries', description: 'Clip values outside boundaries to historical statistical thresholds' },
+                            { value: 'Drop Rows', description: 'Erase outliers entirely to shield training pipelines from structural scale skewing' },
                           ]}
                           fixSelections={fixSelections}
                           setFixSelections={setFixSelections}
@@ -859,24 +842,6 @@ export default function App() {
                         />
                       </div>
                     ))}
-                    <div>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Outlier Counts by Column
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {Object.entries(result.outliers.per).map(([col, info]) => (
-                          <div key={col} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '0.85rem', fontWeight: 500 }}>{col}</div>
-                            <div style={{ flex: 1 }}>
-                              <div className="bar-track">
-                                <div className="bar-fill" style={{ width: `${Math.min(100, (info.count / result.n) * 100 * 5)}%`, background: 'var(--color-warning)' }}></div>
-                                <div className="bar-label-overlay">{info.count} outlier cell(s) ({info.pct}%)</div>
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
                   </div>
                 )}
               </div>
@@ -886,29 +851,28 @@ export default function App() {
             {activeTab === 'imbalance' && (
               <div>
                 <div className="section-header">
-                  <div className="section-title"><Layers size={18} /><span>Class Imbalance Analysis</span></div>
-                  <div className="section-info">Column: <strong>{result.imbalance.col}</strong></div>
+                  <div className="section-title"><Activity size={18} /><span>Target Class Imbalance</span></div>
+                  <div className="section-info">Analyzed Tracking Parameter: <strong>{result.imbalance.col || 'None Specified'}</strong></div>
                 </div>
                 {!result.imbalance.col ? (
-                  <div className="ok-icon-container" style={{ background: 'var(--bg-info)', color: 'hsl(200, 95%, 75%)', borderColor: 'hsla(200, 95%, 50%, 0.2)' }}>
-                    <Info size={18} /><span>No target column could be identified or auto-selected (minimum 2 classes needed).</span>
+                  <div style={{ color: 'var(--text-muted)', fontSize: '0.9rem', textAlign: 'center', padding: '2rem 0' }}>
+                    <Info size={24} style={{ marginBottom: '8px', display: 'block', margin: '0 auto' }} />
+                    Provide an explicit target variable during initialization to execute automated balancing analysis audits.
                   </div>
                 ) : (
                   <div>
-                    <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Minority/Majority class ratio:</span>
-                      <span className={`badge ${result.imbalance.ratio < 0.3 ? 'badge-danger' : result.imbalance.ratio < 0.6 ? 'badge-warning' : 'badge-success'}`}>
-                        {result.imbalance.ratio}
-                      </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>(Values below 0.3 represent critical imbalance)</span>
+                    <div style={{ marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                      Minority-to-Majority Ratio structural calculation: <strong style={{ color: result.imbalance.ratio < 0.2 ? 'hsl(354, 76%, 50%)' : 'hsl(142, 72%, 40%)' }}>{result.imbalance.ratio.toFixed(4)}</strong>
                     </div>
-                    <div className="table-container" style={{ marginBottom: '2rem' }}>
+                    <div className="table-container" style={{ marginBottom: '1.5rem' }}>
                       <table>
-                        <thead><tr><th>Class Value</th><th>Frequency Count</th><th>Percentage</th></tr></thead>
+                        <thead>
+                          <tr><th>Class Value Label</th><th>Frequency Distribution</th><th>Vector Space Weight</th></tr>
+                        </thead>
                         <tbody>
-                          {result.imbalance.classes.map((cls, i) => (
-                            <tr key={i}>
-                              <td><strong>{cls.cls}</strong></td>
+                          {result.imbalance.classes.map((cls, idx) => (
+                            <tr key={idx}>
+                              <td><code>{cls.cls}</code></td>
                               <td>{cls.count}</td>
                               <td>{cls.pct}%</td>
                             </tr>
@@ -916,33 +880,11 @@ export default function App() {
                         </tbody>
                       </table>
                     </div>
-                    <div>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '1rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Class Distribution
-                      </h4>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {result.imbalance.classes.map((cls, i) => {
-                          const colors = ['#1D9E75', '#378ADD', '#D85A30', '#BA7517', '#9B59B6', '#E24B4A', '#639922', '#185FA5'];
-                          return (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                              <div style={{ width: '150px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap', fontSize: '0.85rem', fontWeight: 500 }}>{cls.cls}</div>
-                              <div style={{ flex: 1 }}>
-                                <div className="bar-track">
-                                  <div className="bar-fill" style={{ width: `${cls.pct}%`, background: colors[i % colors.length] }}></div>
-                                  <div className="bar-label-overlay">{cls.count} ({cls.pct}%)</div>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
                     <FixBox
                       issueType="imbalance"
                       options={[
-                        { value: 'Oversample Minority Class', description: 'Randomly duplicate minority class rows until all classes are balanced' },
-                        { value: 'Undersample Majority Class', description: 'Randomly remove majority class rows until all classes are balanced' },
-                        { value: 'Keep Distribution', description: 'Do nothing, keep the class distribution as it is' },
+                        { value: 'Resample Weights', description: 'Inject downstream weighting factors to equalize tracking gradients cleanly' },
+                        { value: 'Keep As Is', description: 'Maintain current class distributions without adjusting balancing matrices' }
                       ]}
                       fixSelections={fixSelections}
                       setFixSelections={setFixSelections}
@@ -958,88 +900,42 @@ export default function App() {
             {activeTab === 'correlation' && (
               <div>
                 <div className="section-header">
-                  <div className="section-title"><Link size={18} /><span>Correlation Analysis (Pearson r)</span></div>
-                  <div className="section-info">Threshold: <strong>&ge; {result.correlation.thresh}</strong></div>
+                  <div className="section-title"><Link size={18} /><span>High Multi-Collinearity Features</span></div>
+                  <div className="section-info">Identified relationships using a threshold of &gt;= {result.correlation.thresh}</div>
                 </div>
-                {result.correlation.cols.length < 2 ? (
-                  <div className="ok-icon-container" style={{ background: 'var(--bg-info)', color: 'hsl(200, 95%, 75%)', borderColor: 'hsla(200, 95%, 50%, 0.2)' }}>
-                    <Info size={18} /><span>Analysis requires at least 2 numerical columns. Detected columns: {result.correlation.cols.length}.</span>
+                {result.correlation.pairs.length === 0 ? (
+                  <div className="ok-icon-container">
+                    <CheckCircle2 size={18} /><span>Excellent feature isolation! No severe collinearity detected.</span>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ marginBottom: '1.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      Identified <strong>{result.correlation.pairs.length}</strong> highly correlated column pairs.
-                    </div>
-                    {result.correlation.pairs.length > 0 && (
-                      <>
-                        <div className="table-container" style={{ marginBottom: '1rem' }}>
-                          <table>
-                            <thead><tr><th>Column A</th><th>Column B</th><th>Pearson r Coefficient</th></tr></thead>
-                            <tbody>
-                              {result.correlation.pairs.map((pair, idx) => (
-                                <tr key={idx}>
-                                  <td><strong>{pair.a}</strong></td>
-                                  <td><strong>{pair.b}</strong></td>
-                                  <td>
-                                    <span className={`badge ${Math.abs(pair.r) >= 0.95 ? 'badge-danger' : 'badge-warning'}`}>{pair.r}</span>
-                                  </td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                        {/* Fix box per correlated pair */}
-                        {result.correlation.pairs.map((pair, idx) => (
-                          <FixBox
-                            key={idx}
-                            issueType="correlation"
-                            column={pair.a}
-                            options={[
-                              { value: 'Remove First Column', description: `Drop column "${pair.a}" from the dataset` },
-                              { value: 'Remove Second Column', description: `Drop column "${pair.b}" from the dataset` },
-                              { value: 'Keep Both', description: 'Do nothing, keep both correlated columns' },
-                            ]}
-                            fixSelections={fixSelections}
-                            setFixSelections={setFixSelections}
-                            applyFix={applyFix}
-                            fixLoading={fixLoading}
-                            extraInfo={{ column_b: pair.b }}
-                          />
-                        ))}
-                      </>
-                    )}
-                    <div style={{ marginTop: '2rem' }}>
-                      <h4 style={{ fontSize: '0.95rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                        Pearson Correlation Matrix Heatmap
-                      </h4>
-                      <div className="heatmap-container">
-                        <div className="heatmap-label-row">
-                          {result.correlation.cols.map(c => (
-                            <div key={c} className="heatmap-column-header" title={c}>{c}</div>
+                    <div className="table-container" style={{ marginBottom: '1.5rem' }}>
+                      <table>
+                        <thead>
+                          <tr><th>Feature Vector A</th><th>Feature Vector B</th><th>Pearson Coeff (r)</th></tr>
+                        </thead>
+                        <tbody>
+                          {result.correlation.pairs.map((p, idx) => (
+                            <tr key={idx}>
+                              <td><strong>{p.a}</strong></td>
+                              <td><strong>{p.b}</strong></td>
+                              <td><code style={{ color: 'hsl(354, 95%, 75%)', fontWeight: 600 }}>{p.r.toFixed(4)}</code></td>
+                            </tr>
                           ))}
-                        </div>
-                        {result.correlation.cols.map(c1 => (
-                          <div key={c1} className="heatmap-row">
-                            <div className="heatmap-row-header" title={c1}>{c1}</div>
-                            {result.correlation.cols.map(c2 => {
-                              const val = result.correlation.matrix[c1]?.[c2];
-                              const r = val !== null && val !== undefined ? val : 0;
-                              const alpha = val !== null ? Math.max(0.1, Math.abs(r)) : 0.05;
-                              const bgStyle = val !== null
-                                ? (r > 0 ? `rgba(29, 158, 117, ${alpha})` : `rgba(226, 75, 74, ${alpha})`)
-                                : 'rgba(255,255,255,0.02)';
-                              const txtColor = Math.abs(r) > 0.6 ? '#ffffff' : 'var(--text-secondary)';
-                              return (
-                                <div key={c2} className="heatmap-cell" style={{ background: bgStyle, color: txtColor }}>
-                                  {val !== null ? r.toFixed(2) : '-'}
-                                  <div className="tooltip">{c1} &times; {c2} = {val !== null ? r.toFixed(4) : 'N/A'}</div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        ))}
-                      </div>
+                        </tbody>
+                      </table>
                     </div>
+                    <FixBox
+                      issueType="correlation"
+                      options={[
+                        { value: 'Drop Redundant Columns', description: 'Automatically select and remove the feature with the highest overall correlation index' },
+                        { value: 'Keep Both Features', description: 'Retain both multi-collinear vectors inside the current data sequence matrix' }
+                      ]}
+                      fixSelections={fixSelections}
+                      setFixSelections={setFixSelections}
+                      applyFix={applyFix}
+                      fixLoading={fixLoading}
+                    />
                   </div>
                 )}
               </div>
@@ -1049,104 +945,92 @@ export default function App() {
             {activeTab === 'constant' && (
               <div>
                 <div className="section-header">
-                  <div className="section-title"><Info size={18} /><span>Constant Columns</span></div>
-                  <div className="section-info">{result.constant.length} redundant columns detected</div>
+                  <div className="section-title"><ListFilter size={18} /><span>Constant Single-Value Features</span></div>
+                  <div className="section-info">{result.constant.length} zero-variance vectors identified</div>
                 </div>
                 {result.constant.length === 0 ? (
                   <div className="ok-icon-container">
-                    <CheckCircle2 size={18} /><span>Perfect! All columns contain at least two unique values. No redundant constants.</span>
+                    <CheckCircle2 size={18} /><span>Perfect! All columns express varying structural information.</span>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ marginBottom: '1rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      The following columns contain only a single unique value. They provide no variance or predictive value for training ML models and can be dropped.
-                    </div>
-                    <div className="table-container">
+                    <div className="table-container" style={{ marginBottom: '1.5rem' }}>
                       <table>
-                        <thead><tr><th>Column Name</th><th>Constant Value</th></tr></thead>
+                        <thead>
+                          <tr><th>Column Axis</th><th>Uniform Constant Value</th></tr>
+                        </thead>
                         <tbody>
-                          {result.constant.map((c, idx) => (
-                            <tr key={idx}>
+                          {result.constant.map((c, i) => (
+                            <tr key={i}>
                               <td><strong>{c.col}</strong></td>
-                              <td><code>{c.val}</code></td>
+                              <td><code>{String(c.val)}</code></td>
                             </tr>
                           ))}
                         </tbody>
                       </table>
                     </div>
-                    {result.constant.map((c, idx) => (
-                      <FixBox
-                        key={idx}
-                        issueType="constant"
-                        column={c.col}
-                        options={[
-                          { value: 'Remove Column', description: `Drop "${c.col}" — it has no variance and provides no information` },
-                          { value: 'Keep Column', description: 'Do nothing, keep the constant column' },
-                        ]}
-                        fixSelections={fixSelections}
-                        setFixSelections={setFixSelections}
-                        applyFix={applyFix}
-                        fixLoading={fixLoading}
-                      />
-                    ))}
+                    <FixBox
+                      issueType="constant"
+                      options={[
+                        { value: 'Drop Variance Deficiencies', description: 'Prune zero-variance feature tracks to maximize convergence processing speeds' },
+                        { value: 'Retain Constant Frameworks', description: 'Retain invariant tracking attributes inside the processing arrays' }
+                      ]}
+                      fixSelections={fixSelections}
+                      setFixSelections={setFixSelections}
+                      applyFix={applyFix}
+                      fixLoading={fixLoading}
+                    />
                   </div>
                 )}
               </div>
             )}
 
-            {/* ── Mixed Types Tab ── */}
+            {/* ── Mixed Data Types Tab ── */}
             {activeTab === 'mixed' && (
               <div>
                 <div className="section-header">
-                  <div className="section-title"><Layers size={18} /><span>Mixed Data Types</span></div>
-                  <div className="section-info">{Object.keys(result.mixed).length} multi-typed columns detected</div>
+                  <div className="section-title"><Layers size={18} /><span>Mixed Schema Mismatches</span></div>
+                  <div className="section-info">{Object.keys(result.mixed).length} multi-type columns encountered</div>
                 </div>
                 {Object.keys(result.mixed).length === 0 ? (
                   <div className="ok-icon-container">
-                    <CheckCircle2 size={18} /><span>Awesome! All columns contain consistent data types (excluding missing values).</span>
+                    <CheckCircle2 size={18} /><span>Excellent dataset health! Every column follows a uniform data type.</span>
                   </div>
                 ) : (
-                  <div>
-                    <div style={{ marginBottom: '1.25rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
-                      The following columns contain values of different primary types. It is recommended to clean or cast them before model training.
-                    </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                      {Object.entries(result.mixed).map(([col, types]) => (
-                        <div key={col}>
-                          <h4 style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.5rem' }}>{col}</h4>
-                          <div className="table-container">
-                            <table>
-                              <thead>
-                                <tr><th>Data Type</th><th>Cell Count</th><th>Percentage</th><th>Sample Row Indexes</th></tr>
-                              </thead>
-                              <tbody>
-                                {types.map((t, idx) => (
-                                  <tr key={idx}>
-                                    <td><span className="badge badge-info">{t.type}</span></td>
-                                    <td>{t.count}</td>
-                                    <td>{t.pct}%</td>
-                                    <td style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{t.rows.join(', ')}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          </div>
-                          <FixBox
-                            issueType="mixed"
-                            column={col}
-                            options={[
-                              { value: 'Convert to Numeric', description: 'Force-convert the column to numeric; non-numeric values become NULL' },
-                              { value: 'Convert Entire Column to String', description: 'Convert all values in the column to string type' },
-                              { value: 'Keep As Is', description: 'Do nothing, keep mixed types as they are' },
-                            ]}
-                            fixSelections={fixSelections}
-                            setFixSelections={setFixSelections}
-                            applyFix={applyFix}
-                            fixLoading={fixLoading}
-                          />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                    {Object.entries(result.mixed).map(([col, types]) => (
+                      <div key={col}>
+                        <div style={{ fontSize: '0.95rem', fontWeight: 600, marginBottom: '0.5rem' }}>{col} Schema Variations</div>
+                        <div className="table-container">
+                          <table>
+                            <thead>
+                              <tr><th>Detected Class Template</th><th>Occurrence Frequency</th><th>Percentage Scale</th></tr>
+                            </thead>
+                            <tbody>
+                              {types.map((t, idx) => (
+                                <tr key={idx}>
+                                  <td><code>{t.type}</code></td>
+                                  <td>{t.count}</td>
+                                  <td>{t.pct}%</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
-                      ))}
-                    </div>
+                        <FixBox
+                          issueType="mixed"
+                          column={col}
+                          options={[
+                            { value: 'Cast to Majority Type', description: 'Force uniform coercion down the dominant architectural pipeline track type' },
+                            { value: 'Convert Entirely to String', description: 'Re-encode all variants as literal string primitives safely' }
+                          ]}
+                          fixSelections={fixSelections}
+                          setFixSelections={setFixSelections}
+                          applyFix={applyFix}
+                          fixLoading={fixLoading}
+                        />
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
