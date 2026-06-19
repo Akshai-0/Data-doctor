@@ -106,7 +106,7 @@ export default function App() {
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.detail || "Remote system rejected transformation request");
-      setResult(data); // Instantly updates visualization engine metrics with fresh dataset audit data
+      setResult(data); 
     } catch (err: any) {
       alert(err.message);
     } finally {
@@ -232,6 +232,48 @@ export default function App() {
                     </div>
                   </div>
                   {renderFixWidget("mixed", col)}
+                </div>
+              ))}
+
+              {/* NEW Remediator Unit: Constant Columns (Zero Variance) */}
+              {result.constant && result.constant.map((entry) => (
+                <div key={entry.col} className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{entry.col}</span>
+                      <span className="text-sm font-medium text-slate-400">Constant Column Found (All values are "{entry.val}")</span>
+                    </div>
+                  </div>
+                  {renderFixWidget("constant", entry.col)}
+                </div>
+              ))}
+
+              {/* NEW Remediator Unit: Class Imbalance (Categorical Targets) */}
+              {result.imbalance && result.imbalance.col && (
+                <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{result.imbalance.col}</span>
+                      <span className="text-sm font-medium text-orange-400">Severe Class Imbalance Detected (Skew Ratio: {result.imbalance.ratio.toFixed(2)})</span>
+                    </div>
+                  </div>
+                  {renderFixWidget("imbalance", result.imbalance.col)}
+                </div>
+              ))}
+
+              {/* NEW Remediator Unit: High Multicollinearity/Correlation */}
+              {result.correlation && result.correlation.pairs && result.correlation.pairs.map((pair, idx) => (
+                <div key={idx} className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.a}</span>
+                      <span className="text-slate-400 text-xs">↔</span>
+                      <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.b}</span>
+                      <span className="text-sm font-medium text-yellow-500">High Correlation ($r$ = {pair.r.toFixed(2)})</span>
+                    </div>
+                  </div>
+                  {/* Passes extra context keys so your backend endpoint knows which column pair index to drop */}
+                  {renderFixWidget("correlation", `${pair.a}__${pair.b}`)}
                 </div>
               ))}
 
