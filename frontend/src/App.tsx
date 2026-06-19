@@ -235,7 +235,7 @@ export default function App() {
                 </div>
               ))}
 
-              {/* NEW Remediator Unit: Constant Columns (Zero Variance) */}
+              {/* Remediator Unit: Constant Columns (Zero Variance) */}
               {result.constant && result.constant.map((entry) => (
                 <div key={entry.col} className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -248,7 +248,7 @@ export default function App() {
                 </div>
               ))}
 
-              {/* NEW Remediator Unit: Class Imbalance (Categorical Targets) */}
+              {/* Remediator Unit: Class Imbalance (Categorical Targets) */}
               {result.imbalance && result.imbalance.col && (
                 <div className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -261,7 +261,7 @@ export default function App() {
                 </div>
               ))}
 
-              {/* NEW Remediator Unit: High Multicollinearity/Correlation */}
+              {/* Remediator Unit: High Multicollinearity/Correlation */}
               {result.correlation && result.correlation.pairs && result.correlation.pairs.map((pair, idx) => (
                 <div key={idx} className="bg-slate-800/50 border border-slate-800 rounded-xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="space-y-1">
@@ -269,10 +269,10 @@ export default function App() {
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.a}</span>
                       <span className="text-slate-400 text-xs">↔</span>
                       <span className="px-2 py-0.5 bg-slate-900 text-slate-200 text-xs font-mono rounded border border-slate-700">{pair.b}</span>
-                      <span className="text-sm font-medium text-yellow-500">High Correlation ($r$ = {pair.r.toFixed(2)})</span>
+                      {/* FIXED: Removed raw markdown math notation causing TS tokenization failure */}
+                      <span className="text-sm font-medium text-yellow-500">High Correlation (r = {pair.r.toFixed(2)})</span>
                     </div>
                   </div>
-                  {/* Passes extra context keys so your backend endpoint knows which column pair index to drop */}
                   {renderFixWidget("correlation", `${pair.a}__${pair.b}`)}
                 </div>
               ))}
